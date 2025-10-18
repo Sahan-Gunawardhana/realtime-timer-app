@@ -72,8 +72,8 @@ export default function TimerPage() {
   const handleFloorToggle = async (floorName: string) => {
     await toggleFloorStatus(floorName)
     toast({
-      title: `${floorName}`,
-      description: "Status updated",
+      title: `${floorName} Updated`,
+      description: "Status synchronized across all devices",
     })
   }
 
@@ -81,8 +81,8 @@ export default function TimerPage() {
   useEffect(() => {
     if (timeLeft === 0 && isRunning && initialTime > 0) {
       toast({
-        title: "Time's Up!",
-        description: "Your timer has finished.",
+        title: "Timer Completed",
+        description: "Session time has elapsed",
       })
     }
   }, [timeLeft, isRunning, initialTime, toast])
@@ -93,8 +93,8 @@ export default function TimerPage() {
       const minutesLeft = Math.floor(timeLeft / 60)
       if (!hasWarned.has(timeLeft)) {
         toast({
-          title: "Time Warning",
-          description: `${minutesLeft} minute${minutesLeft !== 1 ? "s" : ""} remaining!`,
+          title: "Time Checkpoint",
+          description: `${minutesLeft} minute${minutesLeft !== 1 ? "s" : ""} remaining`,
         })
         setHasWarned((prev) => new Set([...prev, timeLeft]))
       }
@@ -195,7 +195,7 @@ export default function TimerPage() {
             </button>
           </div>
           
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             <button
               onClick={handleStart}
               disabled={timeLeft === 0}
@@ -209,6 +209,19 @@ export default function TimerPage() {
               className="h-11 bg-gray-800 hover:bg-gray-700 rounded-lg text-white font-medium text-sm disabled:opacity-50"
             >
               -2 Min
+            </button>
+            <button
+              onClick={async () => {
+                await pauseTimer()
+                toast({
+                  title: "Session Terminated",
+                  description: "Timer stopped manually",
+                })
+              }}
+              disabled={!isRunning}
+              className="h-11 bg-red-500 hover:bg-red-600 rounded-lg text-white font-medium text-sm disabled:opacity-50"
+            >
+              Stop
             </button>
           </div>
         </div>
