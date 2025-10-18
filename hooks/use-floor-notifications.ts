@@ -101,7 +101,7 @@ export function useFloorNotifications(): UseFloorNotificationsReturn {
 
         const { data: insertedData, error: insertError } = await supabase
           .from("floor_status")
-          .upsert(defaultItems as any, { onConflict: 'id' })
+          .upsert(defaultItems, { onConflict: 'id' })
           .select()
 
         if (insertError) {
@@ -318,7 +318,7 @@ export function useFloorNotifications(): UseFloorNotificationsReturn {
           ready_at: null,
           completed_at: null,
           updated_at: now,
-        })
+        } as any)
         .neq('id', 'nonexistent') // Update all rows
 
       if (error) throw error

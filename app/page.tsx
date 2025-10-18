@@ -170,11 +170,11 @@ export default function TimerPage() {
   const timerColors = getTimerColors()
 
   return (
-    <main className="min-h-screen bg-black text-white p-3 flex flex-col overflow-hidden">
-      <div className="flex-1 w-full max-w-sm mx-auto flex flex-col">
+    <main className="h-screen bg-black text-white flex flex-col overflow-hidden">
+      <div className="flex-1 w-full max-w-sm mx-auto flex flex-col px-4 py-2 min-h-0">
         {/* Large Circular Timer */}
-        <div className="text-center mb-4">
-          <div className="relative w-48 h-48 mx-auto sm:w-64 sm:h-64">
+        <div className="text-center mb-3 flex-shrink-0">
+          <div className="relative w-40 h-40 mx-auto">
             <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
               <circle
                 cx="50" cy="50" r="45"
@@ -194,7 +194,7 @@ export default function TimerPage() {
             {/* Timer and Status Inside Circle */}
             <div className="absolute inset-0 flex flex-col items-center justify-center">
               <div 
-                className={`text-4xl font-mono font-bold mb-1 transition-colors duration-500`}
+                className={`text-3xl font-mono font-bold mb-1 transition-colors duration-500`}
                 style={{ color: timerColors.rgbStroke }}
               >
                 {formatTime(timeLeft)}
@@ -219,19 +219,19 @@ export default function TimerPage() {
         </div>
 
         {/* Timer Controls */}
-        <div className="space-y-2 mb-4">
+        <div className="space-y-2 mb-3 flex-shrink-0">
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => handleCreateTimer(25)}
               disabled={isRunning}
-              className="h-10 bg-gray-800 hover:bg-gray-700 rounded-lg text-white font-medium disabled:opacity-50 text-sm"
+              className="h-9 bg-gray-800 hover:bg-gray-700 rounded-lg text-white font-medium disabled:opacity-50 text-sm"
             >
               25 Min
             </button>
             <button
               onClick={() => handleCreateTimer(30)}
               disabled={isRunning}
-              className="h-10 bg-gray-800 hover:bg-gray-700 rounded-lg text-white font-medium disabled:opacity-50 text-sm"
+              className="h-9 bg-gray-800 hover:bg-gray-700 rounded-lg text-white font-medium disabled:opacity-50 text-sm"
             >
               30 Min
             </button>
@@ -241,14 +241,14 @@ export default function TimerPage() {
             <button
               onClick={handleStart}
               disabled={timeLeft === 0}
-              className="h-10 bg-green-500 hover:bg-green-600 rounded-lg text-white font-medium disabled:opacity-50 text-sm"
+              className="h-9 bg-green-500 hover:bg-green-600 rounded-lg text-white font-medium disabled:opacity-50 text-sm"
             >
               {isRunning ? "Pause" : "Start"}
             </button>
             <button
               onClick={handleHint}
               disabled={timeLeft <= 120}
-              className="h-10 bg-gray-800 hover:bg-gray-700 rounded-lg text-white font-medium disabled:opacity-50 text-sm"
+              className="h-9 bg-gray-800 hover:bg-gray-700 rounded-lg text-white font-medium disabled:opacity-50 text-sm"
             >
               -2 Min
             </button>
@@ -261,7 +261,7 @@ export default function TimerPage() {
                 })
               }}
               disabled={!isRunning}
-              className="h-10 bg-yellow-500 hover:bg-yellow-600 rounded-lg text-black font-medium disabled:opacity-50 text-sm"
+              className="h-9 bg-yellow-500 hover:bg-yellow-600 rounded-lg text-black font-medium disabled:opacity-50 text-sm"
             >
               Stop
             </button>
@@ -269,18 +269,18 @@ export default function TimerPage() {
         </div>
 
         {/* Floor Status Sections */}
-        <div className="flex-1 space-y-4 overflow-y-auto">
+        <div className="flex-1 space-y-2 overflow-y-auto min-h-0">
           {/* Player Ready Status */}
-          <div>
-            <h3 className="text-lg font-semibold mb-2 text-center text-white">Player Ready</h3>
+          <div className="flex-shrink-0">
+            <h3 className="text-base font-semibold mb-2 text-center text-white">Player Ready</h3>
             <div className="grid grid-cols-3 gap-2">
               {floorStatuses.filter(f => !["right", "wrong"].includes(f.id)).map((floor) => (
                 <button
                   key={`ready-${floor.id}`}
                   onClick={() => handleFloorReady(floor.floor_name)}
-                  className={`h-10 rounded-lg font-semibold text-xs transition-all duration-200 ${
+                  className={`h-9 rounded-lg font-medium text-xs transition-all duration-200 ${
                     floor.is_ready 
-                      ? "bg-yellow-500 text-black shadow-lg transform scale-105" 
+                      ? "bg-yellow-500 text-black shadow-lg" 
                       : "bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white"
                   }`}
                 >
@@ -291,16 +291,16 @@ export default function TimerPage() {
           </div>
 
           {/* Floor Progress */}
-          <div>
-            <h3 className="text-lg font-semibold mb-2 text-center text-white">Floor Progress</h3>
+          <div className="flex-shrink-0">
+            <h3 className="text-base font-semibold mb-2 text-center text-white">Floor Progress</h3>
             <div className="grid grid-cols-3 gap-2">
               {floorStatuses.filter(f => !["right", "wrong"].includes(f.id)).map((floor) => (
                 <button
                   key={`complete-${floor.id}`}
                   onClick={() => handleFloorComplete(floor.floor_name)}
-                  className={`h-10 rounded-lg font-semibold text-xs transition-all duration-200 ${
+                  className={`h-9 rounded-lg font-medium text-xs transition-all duration-200 ${
                     floor.is_completed 
-                      ? "bg-green-500 text-white shadow-lg transform scale-105" 
+                      ? "bg-green-500 text-white shadow-lg" 
                       : "bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white"
                   }`}
                 >
@@ -311,18 +311,18 @@ export default function TimerPage() {
           </div>
 
           {/* Ending Status */}
-          <div>
-            <h3 className="text-lg font-semibold mb-2 text-center text-white">Ending</h3>
+          <div className="flex-shrink-0">
+            <h3 className="text-base font-semibold mb-2 text-center text-white">Ending</h3>
             <div className="grid grid-cols-2 gap-2">
               {floorStatuses.filter(f => ["right", "wrong"].includes(f.id)).map((ending) => (
                 <button
                   key={ending.id}
                   onClick={() => handleFloorComplete(ending.floor_name)}
-                  className={`h-10 rounded-lg font-bold text-xs transition-all duration-200 ${
+                  className={`h-9 rounded-lg font-medium text-xs transition-all duration-200 ${
                     ending.is_completed 
                       ? ending.id === "right" 
-                        ? "bg-green-500 text-white shadow-lg transform scale-105"
-                        : "bg-yellow-500 text-black shadow-lg transform scale-105"
+                        ? "bg-green-500 text-white shadow-lg"
+                        : "bg-yellow-500 text-black shadow-lg"
                       : "bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white"
                   }`}
                 >
