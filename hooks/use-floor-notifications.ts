@@ -101,7 +101,7 @@ export function useFloorNotifications(): UseFloorNotificationsReturn {
 
         const { data: insertedData, error: insertError } = await supabase
           .from("floor_status")
-          .upsert(defaultItems, { onConflict: 'id' })
+          .upsert(defaultItems as any, { onConflict: 'id' })
           .select()
 
         if (insertError) {
@@ -206,48 +206,38 @@ export function useFloorNotifications(): UseFloorNotificationsReturn {
       return
     }
 
-    if (!supabase) return
-
-    const now = new Date().toISOString()
-
     try {
-      const { error } = await supabase
-        .from("floor_status")
-        .upsert({
-          id: floorId,
-          floor_name: floorName,
-          is_ready: newReadyStatus,
-          is_completed: currentStatus?.is_completed || false,
-          ready_at: newReadyStatus ? now : null,
-          completed_at: currentStatus?.completed_at || null,
-          updated_at: now,
-        } as any)
+      const response = await fetch('/api/floor-status', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          floorName,
+          action: 'toggle_ready'
+        }),
+      })
 
-      if (error) {
-        setFloorStatuses(prev => prev.map(floor => 
-          floor.id === floorId 
-            ? {
-                ...floor,
-                is_ready: newReadyStatus,
-                ready_at: newReadyStatus ? now : null,
-                updated_at: now,
-              }
-            : floor
-        ))
+      if (!response.ok) {
+        throw new Error('Failed to update floor status')
       }
+
+      // Real-time subscription will handle the UI update
     } catch (err) {
+      // Fallback to local update on error
       setFloorStatuses(prev => prev.map(floor => 
         floor.id === floorId 
           ? {
               ...floor,
               is_ready: newReadyStatus,
-              ready_at: newReadyStatus ? now : null,
-              updated_at: now,
+              ready_at: newReadyStatus ? new Date().toISOString() : null,
+              updated_at: new Date().toISOString(),
             }
           : floor
       ))
+      setError(err instanceof Error ? err.message : "Failed to update ready status")
     }
-  }, [floorStatuses, supabase, isLocalMode])
+  }, [floorStatuses, isLocalMode])
 
   const toggleFloorComplete = useCallback(async (floorName: string) => {
     const floorId = floorName.toLowerCase().replace(/\s+/g, '_')
@@ -268,48 +258,38 @@ export function useFloorNotifications(): UseFloorNotificationsReturn {
       return
     }
 
-    if (!supabase) return
-
-    const now = new Date().toISOString()
-
     try {
-      const { error } = await supabase
-        .from("floor_status")
-        .upsert({
-          id: floorId,
-          floor_name: floorName,
-          is_ready: currentStatus?.is_ready || false,
-          is_completed: newCompleteStatus,
-          ready_at: currentStatus?.ready_at || null,
-          completed_at: newCompleteStatus ? now : null,
-          updated_at: now,
-        } as any)
+      const response = await fetch('/api/floor-status', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          floorName,
+          action: 'toggle_complete'
+        }),
+      })
 
-      if (error) {
-        setFloorStatuses(prev => prev.map(floor => 
-          floor.id === floorId 
-            ? {
-                ...floor,
-                is_completed: newCompleteStatus,
-                completed_at: newCompleteStatus ? now : null,
-                updated_at: now,
-              }
-            : floor
-        ))
+      if (!response.ok) {
+        throw new Error('Failed to update floor status')
       }
+
+      // Real-time subscription will handle the UI update
     } catch (err) {
+      // Fallback to local update on error
       setFloorStatuses(prev => prev.map(floor => 
         floor.id === floorId 
           ? {
               ...floor,
               is_completed: newCompleteStatus,
-              completed_at: newCompleteStatus ? now : null,
-              updated_at: now,
+              completed_at: newCompleteStatus ? new Date().toISOString() : null,
+              updated_at: new Date().toISOString(),
             }
           : floor
       ))
+      setError(err instanceof Error ? err.message : "Failed to update completion status")
     }
-  }, [floorStatuses, supabase, isLocalMode])
+  }, [floorStatuses, isLocalMode])
 
   const resetAllFloors = useCallback(async () => {
     if (isLocalMode) {
@@ -338,7 +318,7 @@ export function useFloorNotifications(): UseFloorNotificationsReturn {
           ready_at: null,
           completed_at: null,
           updated_at: now,
-        } as any)
+        })
         .neq('id', 'nonexistent') // Update all rows
 
       if (error) throw error
