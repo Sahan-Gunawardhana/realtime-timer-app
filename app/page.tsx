@@ -74,14 +74,24 @@ export default function TimerPage() {
 
   // 5-minute interval warnings
   useEffect(() => {
-    if (timeLeft > 0 && timeLeft % 300 === 0 && isRunning) {
-      const minutesLeft = Math.floor(timeLeft / 60)
-      if (!hasWarned.has(timeLeft)) {
+    if (!isRunning || timeLeft <= 0) return
+
+    const minutesLeft = Math.floor(timeLeft / 60)
+    
+    // Check for 5-minute milestones (25, 20, 15, 10, 5 minutes)
+    const milestones = [25, 20, 15, 10, 5]
+    
+    for (const milestone of milestones) {
+      const milestoneSeconds = milestone * 60
+      
+      // Trigger warning if we're within 3 seconds of a milestone and haven't warned yet
+      if (Math.abs(timeLeft - milestoneSeconds) <= 3 && !hasWarned.has(milestone)) {
         toast({
           title: "Time Warning",
-          description: `${minutesLeft} minute${minutesLeft !== 1 ? "s" : ""} remaining!`,
+          description: `${milestone} minute${milestone !== 1 ? "s" : ""} remaining!`,
         })
-        setHasWarned((prev) => new Set([...prev, timeLeft]))
+        setHasWarned((prev) => new Set([...prev, milestone]))
+        break // Only show one warning at a time
       }
     }
   }, [timeLeft, isRunning, hasWarned, toast])

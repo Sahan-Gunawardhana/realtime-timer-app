@@ -374,23 +374,32 @@ export function useRealtimeTimer(): UseRealtimeTimerReturn {
     const currentRemaining = calculateRemainingTime(timerState).remaining_seconds
     const newRemaining = Math.max(0, currentRemaining - 120)
 
-    // Calculate new total seconds to maintain the hint reduction
-    const newTotalSeconds = timerState.is_running 
-      ? newRemaining // If running, set total to remaining so timer continues from reduced time
-      : timerState.total_seconds // If paused, keep original total
-
     try {
-      const { error } = await supabase!
-        .from("global_timer")
-        .update({
-          remaining_seconds: newRemaining,
-          total_seconds: newTotalSeconds,
-          started_at: timerState.is_running ? now : timerState.started_at,
-          updated_at: now,
-        } as any)
-        .eq("id", 1)
+      if (timerState.is_running) {
+        // If timer is running, restart it with the reduced time
+        const { error } = await supabase!
+          .from("global_timer")
+          .update({
+            remaining_seconds: newRemaining,
+            total_seconds: newRemaining, // Set new total to the reduced time
+            started_at: now, // Restart from now with reduced time
+            updated_at: now,
+          } as any)
+          .eq("id", 1)
 
-      if (error) throw error
+        if (error) throw error
+      } else {
+        // If timer is paused, just reduce the remaining time
+        const { error } = await supabase!
+          .from("global_timer")
+          .update({
+            remaining_seconds: newRemaining,
+            updated_at: now,
+          } as any)
+          .eq("id", 1)
+
+        if (error) throw error
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to apply hint")
     }
