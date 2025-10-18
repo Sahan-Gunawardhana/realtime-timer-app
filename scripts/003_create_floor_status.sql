@@ -22,7 +22,8 @@ VALUES
   ('basement', 'Basement', FALSE, NULL),
   ('1st_floor', '1st Floor', FALSE, NULL),
   ('2nd_floor', '2nd Floor', FALSE, NULL),
-  ('3rd_floor', '3rd Floor', FALSE, NULL)
+  ('right', 'Right', FALSE, NULL),
+  ('wrong', 'Wrong', FALSE, NULL)
 ON CONFLICT (id) DO NOTHING;
 
 -- Enable real-time subscriptions
