@@ -45,6 +45,15 @@ export function useRealtimeTimer(): UseRealtimeTimerReturn {
     const elapsedSeconds = Math.floor((now - startTime) / 1000)
     const remainingSeconds = Math.max(0, state.total_seconds - elapsedSeconds)
 
+    // Auto-stop timer when it reaches zero
+    if (remainingSeconds === 0 && state.is_running) {
+      return {
+        ...state,
+        remaining_seconds: 0,
+        is_running: false,
+      }
+    }
+
     return {
       ...state,
       remaining_seconds: remainingSeconds,
@@ -146,9 +155,9 @@ export function useRealtimeTimer(): UseRealtimeTimerReturn {
     }
   }, [supabase, fetchTimerState, calculateRemainingTime, isLocalMode])
 
-  // Local timer countdown effect
+  // Timer countdown effect (works for both local and real-time modes)
   useEffect(() => {
-    if (!isLocalMode || !timerState?.is_running) {
+    if (!timerState?.is_running) {
       if (intervalRef.current) {
         clearInterval(intervalRef.current)
       }
@@ -159,13 +168,19 @@ export function useRealtimeTimer(): UseRealtimeTimerReturn {
       setTimerState(prev => {
         if (!prev || !prev.is_running) return prev
         
-        const newRemaining = Math.max(0, prev.remaining_seconds - 1)
-        
-        if (newRemaining === 0) {
-          return { ...prev, remaining_seconds: 0, is_running: false }
+        if (isLocalMode) {
+          // Local mode - simple countdown
+          const newRemaining = Math.max(0, prev.remaining_seconds - 1)
+          
+          if (newRemaining === 0) {
+            return { ...prev, remaining_seconds: 0, is_running: false }
+          }
+          
+          return { ...prev, remaining_seconds: newRemaining }
+        } else {
+          // Real-time mode - calculate based on server timestamp
+          return calculateRemainingTime(prev)
         }
-        
-        return { ...prev, remaining_seconds: newRemaining }
       })
     }, 1000)
 
@@ -174,7 +189,7 @@ export function useRealtimeTimer(): UseRealtimeTimerReturn {
         clearInterval(intervalRef.current)
       }
     }
-  }, [isLocalMode, timerState?.is_running])
+  }, [timerState?.is_running, isLocalMode, calculateRemainingTime])
 
   // Timer operations
   const startTimer = useCallback(async () => {
