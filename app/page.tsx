@@ -24,7 +24,8 @@ export default function TimerPage() {
 
   const {
     floorStatuses,
-    toggleFloorStatus,
+    toggleFloorReady,
+    toggleFloorComplete,
     resetAllFloors,
   } = useFloorNotifications()
 
@@ -69,11 +70,19 @@ export default function TimerPage() {
     }
   }
 
-  const handleFloorToggle = async (floorName: string) => {
-    await toggleFloorStatus(floorName)
+  const handleFloorReady = async (floorName: string) => {
+    await toggleFloorReady(floorName)
     toast({
-      title: `${floorName} Updated`,
-      description: "Status synchronized across all devices",
+      title: `${floorName} Ready Status`,
+      description: "Player readiness updated",
+    })
+  }
+
+  const handleFloorComplete = async (floorName: string) => {
+    await toggleFloorComplete(floorName)
+    toast({
+      title: `${floorName} Progress`,
+      description: "Floor completion updated",
     })
   }
 
@@ -119,94 +128,127 @@ export default function TimerPage() {
 
   const progressPercent = initialTime > 0 ? (timeLeft / initialTime) * 100 : 0
   
-  // iOS timer colors based on time remaining (softer green)
-  const getTimerColor = () => {
-    if (progressPercent > 60) return "text-green-400"
-    if (progressPercent > 30) return "text-orange-400"
-    return "text-red-500"
+  // Smooth color gradient based on time remaining
+  const getTimerColors = () => {
+    if (timeLeft === 0) {
+      return {
+        textColor: "text-red-500",
+        strokeColor: "stroke-red-500",
+        rgbStroke: "rgb(239, 68, 68)" // red-500
+      }
+    }
+    
+    const percent = progressPercent / 100
+    
+    if (percent > 0.5) {
+      // Green to Yellow transition (100% to 50%)
+      const greenToYellow = (percent - 0.5) * 2 // 0 to 1
+      const red = Math.round(34 + (234 - 34) * (1 - greenToYellow)) // 34 to 234
+      const green = Math.round(197) // Keep green constant
+      const blue = Math.round(94 * greenToYellow) // 0 to 94
+      
+      return {
+        textColor: "text-yellow-500",
+        strokeColor: "stroke-yellow-500",
+        rgbStroke: `rgb(${red}, ${green}, ${blue})`
+      }
+    } else {
+      // Yellow to Red transition (50% to 0%)
+      const yellowToRed = percent * 2 // 0 to 1
+      const red = Math.round(234 + (239 - 234) * (1 - yellowToRed)) // 234 to 239
+      const green = Math.round(179 * yellowToRed) // 179 to 68
+      const blue = Math.round(68) // Keep blue constant
+      
+      return {
+        textColor: "text-red-500",
+        strokeColor: "stroke-red-500", 
+        rgbStroke: `rgb(${red}, ${green}, ${blue})`
+      }
+    }
   }
 
-  const getProgressColor = () => {
-    if (progressPercent > 60) return "stroke-green-400"
-    if (progressPercent > 30) return "stroke-orange-400"
-    return "stroke-red-500"
-  }
+  const timerColors = getTimerColors()
 
   return (
-    <main className="min-h-screen bg-black text-white p-3 flex flex-col">
-      <div className="flex-1 max-w-xs mx-auto w-full">
-        {/* Progress Indicator at Top */}
-        <div className="w-full h-1 bg-gray-800 rounded-full mb-4">
-          <div 
-            className={`h-full rounded-full transition-all duration-300 ${
-              progressPercent > 60 ? "bg-green-400" : 
-              progressPercent > 30 ? "bg-orange-400" : "bg-red-500"
-            }`}
-            style={{ width: `${progressPercent}%` }}
-          />
-        </div>
-
-        {/* iOS-style Timer Display */}
-        <div className="text-center mb-6">
-          <div className={`text-5xl sm:text-6xl font-thin ${getTimerColor()} mb-4 font-mono`}>
-            {formatTime(timeLeft)}
-          </div>
-          
-          {/* Compact Circular Progress */}
-          <div className="relative w-32 h-32 mx-auto mb-6">
+    <main className="min-h-screen bg-black text-white p-4 flex flex-col">
+      <div className="flex-1 w-full max-w-sm mx-auto">
+        {/* Large Circular Timer */}
+        <div className="text-center mb-8">
+          <div className="relative w-64 h-64 mx-auto">
             <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
               <circle
                 cx="50" cy="50" r="45"
-                stroke="rgb(55, 65, 81)" strokeWidth="3" fill="none"
+                stroke="rgb(55, 65, 81)" strokeWidth="4" fill="none"
               />
               <circle
                 cx="50" cy="50" r="45"
-                stroke="currentColor" strokeWidth="3" fill="none"
+                stroke={timerColors.rgbStroke} strokeWidth="4" fill="none"
                 strokeDasharray={`${2 * Math.PI * 45}`}
                 strokeDashoffset={`${2 * Math.PI * 45 * (1 - progressPercent / 100)}`}
-                className={getProgressColor()}
-                style={{ transition: "stroke-dashoffset 0.3s ease" }}
+                style={{ 
+                  transition: "stroke-dashoffset 0.3s ease, stroke 0.5s ease"
+                }}
               />
             </svg>
-            {isRunning && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+            
+            {/* Timer and Status Inside Circle */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <div 
+                className={`text-4xl font-mono font-bold mb-1 transition-colors duration-500`}
+                style={{ color: timerColors.rgbStroke }}
+              >
+                {formatTime(timeLeft)}
               </div>
-            )}
+              {isRunning && (
+                <div className="flex items-center gap-1 text-sm">
+                  <div 
+                    className="w-2 h-2 rounded-full animate-pulse"
+                    style={{ backgroundColor: timerColors.rgbStroke }}
+                  />
+                  <span style={{ color: timerColors.rgbStroke }}>Running</span>
+                </div>
+              )}
+              {!isRunning && timeLeft > 0 && (
+                <div className="text-gray-400 text-sm">Ready</div>
+              )}
+              {timeLeft === 0 && (
+                <div className="text-red-400 text-sm font-medium">Time Up</div>
+              )}
+            </div>
           </div>
         </div>
 
         {/* Timer Controls */}
-        <div className="space-y-2 mb-6">
-          <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-3 mb-8">
+          <div className="grid grid-cols-2 gap-3">
             <button
               onClick={() => handleCreateTimer(25)}
               disabled={isRunning}
-              className="h-11 bg-gray-800 hover:bg-gray-700 rounded-lg text-white font-medium text-sm disabled:opacity-50"
+              className="h-12 bg-gray-800 hover:bg-gray-700 rounded-xl text-white font-medium disabled:opacity-50"
             >
               25 Min
             </button>
             <button
               onClick={() => handleCreateTimer(30)}
               disabled={isRunning}
-              className="h-11 bg-gray-800 hover:bg-gray-700 rounded-lg text-white font-medium text-sm disabled:opacity-50"
+              className="h-12 bg-gray-800 hover:bg-gray-700 rounded-xl text-white font-medium disabled:opacity-50"
             >
               30 Min
             </button>
           </div>
           
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-3 gap-3">
             <button
               onClick={handleStart}
               disabled={timeLeft === 0}
-              className="h-11 bg-green-500 hover:bg-green-600 rounded-lg text-white font-medium text-sm disabled:opacity-50"
+              className="h-12 bg-green-500 hover:bg-green-600 rounded-xl text-white font-medium disabled:opacity-50"
             >
               {isRunning ? "Pause" : "Start"}
             </button>
             <button
               onClick={handleHint}
               disabled={timeLeft <= 120}
-              className="h-11 bg-gray-800 hover:bg-gray-700 rounded-lg text-white font-medium text-sm disabled:opacity-50"
+              className="h-12 bg-gray-800 hover:bg-gray-700 rounded-xl text-white font-medium disabled:opacity-50"
             >
               -2 Min
             </button>
@@ -219,25 +261,45 @@ export default function TimerPage() {
                 })
               }}
               disabled={!isRunning}
-              className="h-11 bg-red-500 hover:bg-red-600 rounded-lg text-white font-medium text-sm disabled:opacity-50"
+              className="h-12 bg-yellow-500 hover:bg-yellow-600 rounded-xl text-black font-medium disabled:opacity-50"
             >
               Stop
             </button>
           </div>
         </div>
 
-        {/* Floor Status */}
-        <div className="mb-4">
-          <h3 className="text-base font-medium mb-2">Floors</h3>
-          <div className="grid grid-cols-3 gap-2">
+        {/* Player Ready Status */}
+        <div className="mb-8">
+          <h3 className="text-xl font-semibold mb-4 text-center text-white">Player Ready</h3>
+          <div className="grid grid-cols-3 gap-3">
             {floorStatuses.filter(f => !["right", "wrong"].includes(f.id)).map((floor) => (
               <button
-                key={floor.id}
-                onClick={() => handleFloorToggle(floor.floor_name)}
-                className={`h-9 rounded-lg font-medium text-xs transition-all ${
+                key={`ready-${floor.id}`}
+                onClick={() => handleFloorReady(floor.floor_name)}
+                className={`h-14 rounded-xl font-semibold text-sm transition-all duration-200 ${
+                  floor.is_ready 
+                    ? "bg-yellow-500 text-black shadow-lg transform scale-105" 
+                    : "bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white"
+                }`}
+              >
+                {floor.floor_name.replace(" Floor", "")}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Floor Progress */}
+        <div className="mb-8">
+          <h3 className="text-xl font-semibold mb-4 text-center text-white">Floor Progress</h3>
+          <div className="grid grid-cols-3 gap-3">
+            {floorStatuses.filter(f => !["right", "wrong"].includes(f.id)).map((floor) => (
+              <button
+                key={`complete-${floor.id}`}
+                onClick={() => handleFloorComplete(floor.floor_name)}
+                className={`h-14 rounded-xl font-semibold text-sm transition-all duration-200 ${
                   floor.is_completed 
-                    ? "bg-green-500 text-white" 
-                    : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+                    ? "bg-green-500 text-white shadow-lg transform scale-105" 
+                    : "bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white"
                 }`}
               >
                 {floor.floor_name.replace(" Floor", "")}
@@ -248,18 +310,18 @@ export default function TimerPage() {
 
         {/* Ending Status */}
         <div>
-          <h3 className="text-base font-medium mb-2">Ending</h3>
-          <div className="grid grid-cols-2 gap-2">
+          <h3 className="text-xl font-semibold mb-4 text-center text-white">Ending</h3>
+          <div className="grid grid-cols-2 gap-4">
             {floorStatuses.filter(f => ["right", "wrong"].includes(f.id)).map((ending) => (
               <button
                 key={ending.id}
-                onClick={() => handleFloorToggle(ending.floor_name)}
-                className={`h-9 rounded-lg font-medium text-xs transition-all ${
+                onClick={() => handleFloorComplete(ending.floor_name)}
+                className={`h-16 rounded-xl font-bold text-base transition-all duration-200 ${
                   ending.is_completed 
                     ? ending.id === "right" 
-                      ? "bg-green-500 text-white"
-                      : "bg-red-500 text-white"
-                    : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+                      ? "bg-green-500 text-white shadow-lg transform scale-105"
+                      : "bg-yellow-500 text-black shadow-lg transform scale-105"
+                    : "bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white"
                 }`}
               >
                 {ending.floor_name}

@@ -6,7 +6,9 @@ import { createClient } from "@/lib/supabase/client"
 interface FloorStatus {
   id: string
   floor_name: string
+  is_ready: boolean
   is_completed: boolean
+  ready_at: string | null
   completed_at: string | null
   updated_at: string
 }
@@ -15,7 +17,8 @@ interface UseFloorNotificationsReturn {
   floorStatuses: FloorStatus[]
   isLoading: boolean
   error: string | null
-  toggleFloorStatus: (floorName: string) => Promise<void>
+  toggleFloorReady: (floorName: string) => Promise<void>
+  toggleFloorComplete: (floorName: string) => Promise<void>
   resetAllFloors: () => Promise<void>
 }
 
@@ -39,14 +42,18 @@ export function useFloorNotifications(): UseFloorNotificationsReturn {
         ...floors.map(floor => ({
           id: floor.toLowerCase().replace(/\s+/g, '_'),
           floor_name: floor,
+          is_ready: false,
           is_completed: false,
+          ready_at: null,
           completed_at: null,
           updated_at: new Date().toISOString(),
         })),
         ...endings.map(ending => ({
           id: ending.toLowerCase(),
           floor_name: ending,
+          is_ready: false,
           is_completed: false,
+          ready_at: null,
           completed_at: null,
           updated_at: new Date().toISOString(),
         }))
@@ -77,13 +84,17 @@ export function useFloorNotifications(): UseFloorNotificationsReturn {
           ...floors.map(floor => ({
             id: floor.toLowerCase().replace(/\s+/g, '_'),
             floor_name: floor,
+            is_ready: false,
             is_completed: false,
+            ready_at: null,
             completed_at: null,
           })),
           ...endings.map(ending => ({
             id: ending.toLowerCase(),
             floor_name: ending,
+            is_ready: false,
             is_completed: false,
+            ready_at: null,
             completed_at: null,
           }))
         ]
@@ -108,14 +119,18 @@ export function useFloorNotifications(): UseFloorNotificationsReturn {
         ...floors.map(floor => ({
           id: floor.toLowerCase().replace(/\s+/g, '_'),
           floor_name: floor,
+          is_ready: false,
           is_completed: false,
+          ready_at: null,
           completed_at: null,
           updated_at: new Date().toISOString(),
         })),
         ...endings.map(ending => ({
           id: ending.toLowerCase(),
           floor_name: ending,
+          is_ready: false,
           is_completed: false,
+          ready_at: null,
           completed_at: null,
           updated_at: new Date().toISOString(),
         }))
@@ -172,19 +187,18 @@ export function useFloorNotifications(): UseFloorNotificationsReturn {
     }
   }, [supabase, isLocalMode, initializeFloors])
 
-  const toggleFloorStatus = useCallback(async (floorName: string) => {
+  const toggleFloorReady = useCallback(async (floorName: string) => {
     const floorId = floorName.toLowerCase().replace(/\s+/g, '_')
     const currentStatus = floorStatuses.find(f => f.id === floorId)
-    const newStatus = !currentStatus?.is_completed
+    const newReadyStatus = !currentStatus?.is_ready
 
     if (isLocalMode) {
-      // Local mode - update state directly
       setFloorStatuses(prev => prev.map(floor => 
         floor.id === floorId 
           ? {
               ...floor,
-              is_completed: newStatus,
-              completed_at: newStatus ? new Date().toISOString() : null,
+              is_ready: newReadyStatus,
+              ready_at: newReadyStatus ? new Date().toISOString() : null,
               updated_at: new Date().toISOString(),
             }
           : floor
@@ -202,32 +216,94 @@ export function useFloorNotifications(): UseFloorNotificationsReturn {
         .upsert({
           id: floorId,
           floor_name: floorName,
-          is_completed: newStatus,
-          completed_at: newStatus ? now : null,
+          is_ready: newReadyStatus,
+          is_completed: currentStatus?.is_completed || false,
+          ready_at: newReadyStatus ? now : null,
+          completed_at: currentStatus?.completed_at || null,
           updated_at: now,
         } as any)
 
       if (error) {
-        // If database update fails, update local state instead
         setFloorStatuses(prev => prev.map(floor => 
           floor.id === floorId 
             ? {
                 ...floor,
-                is_completed: newStatus,
-                completed_at: newStatus ? now : null,
+                is_ready: newReadyStatus,
+                ready_at: newReadyStatus ? now : null,
                 updated_at: now,
               }
             : floor
         ))
       }
     } catch (err) {
-      // Fallback to local update
       setFloorStatuses(prev => prev.map(floor => 
         floor.id === floorId 
           ? {
               ...floor,
-              is_completed: newStatus,
-              completed_at: newStatus ? now : null,
+              is_ready: newReadyStatus,
+              ready_at: newReadyStatus ? now : null,
+              updated_at: now,
+            }
+          : floor
+      ))
+    }
+  }, [floorStatuses, supabase, isLocalMode])
+
+  const toggleFloorComplete = useCallback(async (floorName: string) => {
+    const floorId = floorName.toLowerCase().replace(/\s+/g, '_')
+    const currentStatus = floorStatuses.find(f => f.id === floorId)
+    const newCompleteStatus = !currentStatus?.is_completed
+
+    if (isLocalMode) {
+      setFloorStatuses(prev => prev.map(floor => 
+        floor.id === floorId 
+          ? {
+              ...floor,
+              is_completed: newCompleteStatus,
+              completed_at: newCompleteStatus ? new Date().toISOString() : null,
+              updated_at: new Date().toISOString(),
+            }
+          : floor
+      ))
+      return
+    }
+
+    if (!supabase) return
+
+    const now = new Date().toISOString()
+
+    try {
+      const { error } = await supabase
+        .from("floor_status")
+        .upsert({
+          id: floorId,
+          floor_name: floorName,
+          is_ready: currentStatus?.is_ready || false,
+          is_completed: newCompleteStatus,
+          ready_at: currentStatus?.ready_at || null,
+          completed_at: newCompleteStatus ? now : null,
+          updated_at: now,
+        } as any)
+
+      if (error) {
+        setFloorStatuses(prev => prev.map(floor => 
+          floor.id === floorId 
+            ? {
+                ...floor,
+                is_completed: newCompleteStatus,
+                completed_at: newCompleteStatus ? now : null,
+                updated_at: now,
+              }
+            : floor
+        ))
+      }
+    } catch (err) {
+      setFloorStatuses(prev => prev.map(floor => 
+        floor.id === floorId 
+          ? {
+              ...floor,
+              is_completed: newCompleteStatus,
+              completed_at: newCompleteStatus ? now : null,
               updated_at: now,
             }
           : floor
@@ -240,7 +316,9 @@ export function useFloorNotifications(): UseFloorNotificationsReturn {
       // Local mode - reset all statuses
       setFloorStatuses(prev => prev.map(floor => ({
         ...floor,
+        is_ready: false,
         is_completed: false,
+        ready_at: null,
         completed_at: null,
         updated_at: new Date().toISOString(),
       })))
@@ -255,7 +333,9 @@ export function useFloorNotifications(): UseFloorNotificationsReturn {
       const { error } = await supabase
         .from("floor_status")
         .update({
+          is_ready: false,
           is_completed: false,
+          ready_at: null,
           completed_at: null,
           updated_at: now,
         } as any)
@@ -271,7 +351,8 @@ export function useFloorNotifications(): UseFloorNotificationsReturn {
     floorStatuses,
     isLoading,
     error,
-    toggleFloorStatus,
+    toggleFloorReady,
+    toggleFloorComplete,
     resetAllFloors,
   }
 }
