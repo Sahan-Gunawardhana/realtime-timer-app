@@ -374,13 +374,18 @@ export function useRealtimeTimer(): UseRealtimeTimerReturn {
     const currentRemaining = calculateRemainingTime(timerState).remaining_seconds
     const newRemaining = Math.max(0, currentRemaining - 120)
 
+    // Calculate new total seconds to maintain the hint reduction
+    const newTotalSeconds = timerState.is_running 
+      ? newRemaining // If running, set total to remaining so timer continues from reduced time
+      : timerState.total_seconds // If paused, keep original total
+
     try {
       const { error } = await supabase!
         .from("global_timer")
         .update({
           remaining_seconds: newRemaining,
-          total_seconds: timerState.total_seconds,
-          started_at: timerState.is_running ? now : null,
+          total_seconds: newTotalSeconds,
+          started_at: timerState.is_running ? now : timerState.started_at,
           updated_at: now,
         } as any)
         .eq("id", 1)
