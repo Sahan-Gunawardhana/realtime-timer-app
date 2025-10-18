@@ -52,7 +52,7 @@ export function useRealtimeTimer(): UseRealtimeTimerReturn {
   // Fetch initial timer state
   const fetchTimerState = useCallback(async () => {
     if (!supabase) {
-      setError("Supabase client not available")
+      setError("Database connection not configured. Please check environment variables.")
       setIsLoading(false)
       return
     }
@@ -96,7 +96,19 @@ export function useRealtimeTimer(): UseRealtimeTimerReturn {
 
   // Set up real-time subscription
   useEffect(() => {
-    if (!supabase) return
+    if (!supabase) {
+      // Fallback to local timer when Supabase is not available
+      setTimerState({
+        id: 1,
+        total_seconds: 1500,
+        remaining_seconds: 1500,
+        is_running: false,
+        started_at: null,
+        updated_at: new Date().toISOString(),
+      })
+      setIsLoading(false)
+      return
+    }
     
     fetchTimerState()
 
