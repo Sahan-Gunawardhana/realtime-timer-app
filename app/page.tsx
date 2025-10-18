@@ -171,164 +171,194 @@ export default function TimerPage() {
 
   return (
     <main className="h-screen bg-black text-white flex flex-col overflow-hidden">
-      <div className="flex-1 w-full max-w-sm mx-auto flex flex-col px-4 py-2 min-h-0">
-        {/* Large Circular Timer */}
-        <div className="text-center mb-3 flex-shrink-0">
-          <div className="relative w-40 h-40 mx-auto">
-            <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-              <circle
-                cx="50" cy="50" r="45"
-                stroke="rgb(55, 65, 81)" strokeWidth="4" fill="none"
-              />
-              <circle
-                cx="50" cy="50" r="45"
-                stroke={timerColors.rgbStroke} strokeWidth="4" fill="none"
-                strokeDasharray={`${2 * Math.PI * 45}`}
-                strokeDashoffset={`${2 * Math.PI * 45 * (1 - progressPercent / 100)}`}
-                style={{ 
-                  transition: "stroke-dashoffset 0.3s ease, stroke 0.5s ease"
-                }}
-              />
-            </svg>
-            
-            {/* Timer and Status Inside Circle */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <div 
-                className={`text-3xl font-mono font-bold mb-1 transition-colors duration-500`}
-                style={{ color: timerColors.rgbStroke }}
-              >
-                {formatTime(timeLeft)}
-              </div>
-              {isRunning && (
-                <div className="flex items-center gap-1 text-sm">
-                  <div 
-                    className="w-2 h-2 rounded-full animate-pulse"
-                    style={{ backgroundColor: timerColors.rgbStroke }}
-                  />
-                  <span style={{ color: timerColors.rgbStroke }}>Running</span>
+      <div className="w-full max-w-sm mx-auto flex flex-col h-full px-4 py-2">
+        {/* Timer Area - 40% of screen height */}
+        <div className="flex flex-col justify-center items-center" style={{ height: '40vh' }}>
+          {/* Dynamic Timer Circle */}
+          <div className="relative flex items-center justify-center w-full h-full max-w-xs max-h-xs">
+            <div className="relative aspect-square w-full max-w-[min(60vw,40vh)] max-h-[min(60vw,40vh)]">
+              <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
+                <circle
+                  cx="50" cy="50" r="45"
+                  stroke="rgb(55, 65, 81)" strokeWidth="4" fill="none"
+                />
+                <circle
+                  cx="50" cy="50" r="45"
+                  stroke={timerColors.rgbStroke} strokeWidth="4" fill="none"
+                  strokeDasharray={`${2 * Math.PI * 45}`}
+                  strokeDashoffset={`${2 * Math.PI * 45 * (1 - progressPercent / 100)}`}
+                  style={{ 
+                    transition: "stroke-dashoffset 0.3s ease, stroke 0.5s ease"
+                  }}
+                />
+              </svg>
+              
+              {/* Timer and Status Inside Circle */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <div 
+                  className="font-mono font-bold mb-1 transition-colors duration-500"
+                  style={{ 
+                    color: timerColors.rgbStroke,
+                    fontSize: 'min(8vw, 6vh, 3rem)'
+                  }}
+                >
+                  {formatTime(timeLeft)}
                 </div>
-              )}
-              {!isRunning && timeLeft > 0 && (
-                <div className="text-gray-400 text-sm">Ready</div>
-              )}
-              {timeLeft === 0 && (
-                <div className="text-red-400 text-sm font-medium">Time Up</div>
-              )}
+                {isRunning && (
+                  <div className="flex items-center gap-1" style={{ fontSize: 'min(3vw, 2vh, 0.875rem)' }}>
+                    <div 
+                      className="rounded-full animate-pulse"
+                      style={{ 
+                        backgroundColor: timerColors.rgbStroke,
+                        width: 'min(2vw, 1.5vh, 0.5rem)',
+                        height: 'min(2vw, 1.5vh, 0.5rem)'
+                      }}
+                    />
+                    <span style={{ color: timerColors.rgbStroke }}>Running</span>
+                  </div>
+                )}
+                {!isRunning && timeLeft > 0 && (
+                  <div className="text-gray-400" style={{ fontSize: 'min(3vw, 2vh, 0.875rem)' }}>Ready</div>
+                )}
+                {timeLeft === 0 && (
+                  <div className="text-red-400 font-medium" style={{ fontSize: 'min(3vw, 2vh, 0.875rem)' }}>Time Up</div>
+                )}
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Timer Controls */}
-        <div className="space-y-2 mb-3 flex-shrink-0">
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={() => handleCreateTimer(25)}
-              disabled={isRunning}
-              className="h-9 bg-gray-800 hover:bg-gray-700 rounded-lg text-white font-medium disabled:opacity-50 text-sm"
-            >
-              25 Min
-            </button>
-            <button
-              onClick={() => handleCreateTimer(30)}
-              disabled={isRunning}
-              className="h-9 bg-gray-800 hover:bg-gray-700 rounded-lg text-white font-medium disabled:opacity-50 text-sm"
-            >
-              30 Min
-            </button>
-          </div>
-          
-          <div className="grid grid-cols-3 gap-2">
-            <button
-              onClick={handleStart}
-              disabled={timeLeft === 0}
-              className="h-9 bg-green-500 hover:bg-green-600 rounded-lg text-white font-medium disabled:opacity-50 text-sm"
-            >
-              {isRunning ? "Pause" : "Start"}
-            </button>
-            <button
-              onClick={handleHint}
-              disabled={timeLeft <= 120}
-              className="h-9 bg-gray-800 hover:bg-gray-700 rounded-lg text-white font-medium disabled:opacity-50 text-sm"
-            >
-              -2 Min
-            </button>
-            <button
-              onClick={async () => {
-                await pauseTimer()
-                toast({
-                  title: "Session Terminated",
-                  description: "Timer stopped manually",
-                })
-              }}
-              disabled={!isRunning}
-              className="h-9 bg-yellow-500 hover:bg-yellow-600 rounded-lg text-black font-medium disabled:opacity-50 text-sm"
-            >
-              Stop
-            </button>
-          </div>
-        </div>
-
-        {/* Floor Status Sections */}
-        <div className="flex-1 space-y-2 overflow-y-auto min-h-0">
-          {/* Player Ready Status */}
-          <div className="flex-shrink-0">
-            <h3 className="text-base font-semibold mb-2 text-center text-white">Player Ready</h3>
-            <div className="grid grid-cols-3 gap-2">
-              {floorStatuses.filter(f => !["right", "wrong"].includes(f.id)).map((floor) => (
-                <button
-                  key={`ready-${floor.id}`}
-                  onClick={() => handleFloorReady(floor.floor_name)}
-                  className={`h-9 rounded-lg font-medium text-xs transition-all duration-200 ${
-                    floor.is_ready 
-                      ? "bg-yellow-500 text-black shadow-lg" 
-                      : "bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white"
-                  }`}
-                >
-                  {floor.floor_name.replace(" Floor", "")}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Floor Progress */}
-          <div className="flex-shrink-0">
-            <h3 className="text-base font-semibold mb-2 text-center text-white">Floor Progress</h3>
-            <div className="grid grid-cols-3 gap-2">
-              {floorStatuses.filter(f => !["right", "wrong"].includes(f.id)).map((floor) => (
-                <button
-                  key={`complete-${floor.id}`}
-                  onClick={() => handleFloorComplete(floor.floor_name)}
-                  className={`h-9 rounded-lg font-medium text-xs transition-all duration-200 ${
-                    floor.is_completed 
-                      ? "bg-green-500 text-white shadow-lg" 
-                      : "bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white"
-                  }`}
-                >
-                  {floor.floor_name.replace(" Floor", "")}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Ending Status */}
-          <div className="flex-shrink-0">
-            <h3 className="text-base font-semibold mb-2 text-center text-white">Ending</h3>
+        {/* Controls and Floor Status - 60% of screen height */}
+        <div className="flex flex-col overflow-hidden" style={{ height: '60vh' }}>
+          {/* Timer Controls */}
+          <div className="space-y-2 mb-4 flex-shrink-0">
             <div className="grid grid-cols-2 gap-2">
-              {floorStatuses.filter(f => ["right", "wrong"].includes(f.id)).map((ending) => (
-                <button
-                  key={ending.id}
-                  onClick={() => handleFloorComplete(ending.floor_name)}
-                  className={`h-9 rounded-lg font-medium text-xs transition-all duration-200 ${
-                    ending.is_completed 
-                      ? ending.id === "right" 
-                        ? "bg-green-500 text-white shadow-lg"
-                        : "bg-yellow-500 text-black shadow-lg"
-                      : "bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white"
-                  }`}
-                >
-                  {ending.floor_name}
-                </button>
-              ))}
+              <button
+                onClick={() => handleCreateTimer(25)}
+                disabled={isRunning}
+                className="bg-gray-800 hover:bg-gray-700 rounded-lg text-white font-medium disabled:opacity-50 transition-all duration-200"
+                style={{ height: 'min(10vw, 6vh, 2.25rem)', fontSize: 'min(3.5vw, 2.5vh, 0.875rem)' }}
+              >
+                25 Min
+              </button>
+              <button
+                onClick={() => handleCreateTimer(30)}
+                disabled={isRunning}
+                className="bg-gray-800 hover:bg-gray-700 rounded-lg text-white font-medium disabled:opacity-50 transition-all duration-200"
+                style={{ height: 'min(10vw, 6vh, 2.25rem)', fontSize: 'min(3.5vw, 2.5vh, 0.875rem)' }}
+              >
+                30 Min
+              </button>
+            </div>
+            
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                onClick={handleStart}
+                disabled={timeLeft === 0}
+                className="bg-green-500 hover:bg-green-600 rounded-lg text-white font-medium disabled:opacity-50 transition-all duration-200"
+                style={{ height: 'min(10vw, 6vh, 2.25rem)', fontSize: 'min(3.5vw, 2.5vh, 0.875rem)' }}
+              >
+                {isRunning ? "Pause" : "Start"}
+              </button>
+              <button
+                onClick={handleHint}
+                disabled={timeLeft <= 120}
+                className="bg-gray-800 hover:bg-gray-700 rounded-lg text-white font-medium disabled:opacity-50 transition-all duration-200"
+                style={{ height: 'min(10vw, 6vh, 2.25rem)', fontSize: 'min(3.5vw, 2.5vh, 0.875rem)' }}
+              >
+                -2 Min
+              </button>
+              <button
+                onClick={async () => {
+                  await pauseTimer()
+                  toast({
+                    title: "Session Terminated",
+                    description: "Timer stopped manually",
+                  })
+                }}
+                disabled={!isRunning}
+                className="bg-yellow-500 hover:bg-yellow-600 rounded-lg text-black font-medium disabled:opacity-50 transition-all duration-200"
+                style={{ height: 'min(10vw, 6vh, 2.25rem)', fontSize: 'min(3.5vw, 2.5vh, 0.875rem)' }}
+              >
+                Stop
+              </button>
+            </div>
+          </div>
+
+          {/* Floor Status Sections */}
+          <div className="flex-1 space-y-3 overflow-y-auto min-h-0">
+            {/* Player Ready Status */}
+            <div className="flex-shrink-0">
+              <h3 className="font-semibold mb-2 text-center text-white" style={{ fontSize: 'min(4vw, 3vh, 1rem)' }}>Player Ready</h3>
+              <div className="grid grid-cols-3 gap-2">
+                {floorStatuses.filter(f => !["right", "wrong"].includes(f.id)).map((floor) => (
+                  <button
+                    key={`ready-${floor.id}`}
+                    onClick={() => handleFloorReady(floor.floor_name)}
+                    className={`rounded-lg font-medium transition-all duration-200 ${
+                      floor.is_ready 
+                        ? "bg-yellow-500 text-black shadow-lg" 
+                        : "bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white"
+                    }`}
+                    style={{ 
+                      height: 'min(10vw, 6vh, 2.25rem)', 
+                      fontSize: 'min(3vw, 2vh, 0.75rem)' 
+                    }}
+                  >
+                    {floor.floor_name.replace(" Floor", "")}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Floor Progress */}
+            <div className="flex-shrink-0">
+              <h3 className="font-semibold mb-2 text-center text-white" style={{ fontSize: 'min(4vw, 3vh, 1rem)' }}>Floor Progress</h3>
+              <div className="grid grid-cols-3 gap-2">
+                {floorStatuses.filter(f => !["right", "wrong"].includes(f.id)).map((floor) => (
+                  <button
+                    key={`complete-${floor.id}`}
+                    onClick={() => handleFloorComplete(floor.floor_name)}
+                    className={`rounded-lg font-medium transition-all duration-200 ${
+                      floor.is_completed 
+                        ? "bg-green-500 text-white shadow-lg" 
+                        : "bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white"
+                    }`}
+                    style={{ 
+                      height: 'min(10vw, 6vh, 2.25rem)', 
+                      fontSize: 'min(3vw, 2vh, 0.75rem)' 
+                    }}
+                  >
+                    {floor.floor_name.replace(" Floor", "")}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Ending Status */}
+            <div className="flex-shrink-0">
+              <h3 className="font-semibold mb-2 text-center text-white" style={{ fontSize: 'min(4vw, 3vh, 1rem)' }}>Ending</h3>
+              <div className="grid grid-cols-2 gap-2">
+                {floorStatuses.filter(f => ["right", "wrong"].includes(f.id)).map((ending) => (
+                  <button
+                    key={ending.id}
+                    onClick={() => handleFloorComplete(ending.floor_name)}
+                    className={`rounded-lg font-medium transition-all duration-200 ${
+                      ending.is_completed 
+                        ? ending.id === "right" 
+                          ? "bg-green-500 text-white shadow-lg"
+                          : "bg-yellow-500 text-black shadow-lg"
+                        : "bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white"
+                    }`}
+                    style={{ 
+                      height: 'min(10vw, 6vh, 2.25rem)', 
+                      fontSize: 'min(3vw, 2vh, 0.75rem)' 
+                    }}
+                  >
+                    {ending.floor_name}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>
