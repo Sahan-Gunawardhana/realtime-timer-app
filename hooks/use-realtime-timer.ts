@@ -28,9 +28,11 @@ export function useRealtimeTimer(): UseRealtimeTimerReturn {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const channelRef = useRef<any>(null)
+  const intervalRef = useRef<NodeJS.Timeout | null>(null)
   
   // Only create client on the client side
   const supabase = typeof window !== 'undefined' ? createClient() : null
+  const isLocalMode = !supabase
 
   // Calculate accurate remaining time based on server timestamp
   const calculateRemainingTime = useCallback((state: TimerState): TimerState => {
@@ -75,7 +77,7 @@ export function useRealtimeTimer(): UseRealtimeTimerReturn {
               remaining_seconds: 1500,
               is_running: false,
               started_at: null,
-            })
+            } as any)
             .select()
             .single()
 
@@ -94,10 +96,10 @@ export function useRealtimeTimer(): UseRealtimeTimerReturn {
     }
   }, [supabase, calculateRemainingTime])
 
-  // Set up real-time subscription
+  // Set up real-time subscription or local timer
   useEffect(() => {
-    if (!supabase) {
-      // Fallback to local timer when Supabase is not available
+    if (isLocalMode) {
+      // Local mode - initialize with default timer
       setTimerState({
         id: 1,
         total_seconds: 1500,
@@ -142,83 +144,159 @@ export function useRealtimeTimer(): UseRealtimeTimerReturn {
         supabase.removeChannel(channelRef.current)
       }
     }
-  }, [supabase, fetchTimerState, calculateRemainingTime])
+  }, [supabase, fetchTimerState, calculateRemainingTime, isLocalMode])
+
+  // Local timer countdown effect
+  useEffect(() => {
+    if (!isLocalMode || !timerState?.is_running) {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+      }
+      return
+    }
+
+    intervalRef.current = setInterval(() => {
+      setTimerState(prev => {
+        if (!prev || !prev.is_running) return prev
+        
+        const newRemaining = Math.max(0, prev.remaining_seconds - 1)
+        
+        if (newRemaining === 0) {
+          return { ...prev, remaining_seconds: 0, is_running: false }
+        }
+        
+        return { ...prev, remaining_seconds: newRemaining }
+      })
+    }, 1000)
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+      }
+    }
+  }, [isLocalMode, timerState?.is_running])
 
   // Timer operations
   const startTimer = useCallback(async () => {
-    if (!supabase || !timerState || timerState.remaining_seconds <= 0) return
+    if (!timerState || timerState.remaining_seconds <= 0) return
+
+    if (isLocalMode) {
+      // Local mode - update state directly
+      setTimerState(prev => prev ? {
+        ...prev,
+        is_running: true,
+        started_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      } : null)
+      return
+    }
 
     const now = new Date().toISOString()
     
     try {
-      const { error } = await supabase
+      const { error } = await supabase!
         .from("global_timer")
         .update({
           is_running: true,
           started_at: now,
           updated_at: now,
-        })
+        } as any)
         .eq("id", 1)
 
       if (error) throw error
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to start timer")
     }
-  }, [timerState, supabase])
+  }, [timerState, supabase, isLocalMode])
 
   const pauseTimer = useCallback(async () => {
-    if (!supabase || !timerState) return
+    if (!timerState) return
+
+    if (isLocalMode) {
+      // Local mode - update state directly
+      setTimerState(prev => prev ? {
+        ...prev,
+        is_running: false,
+        started_at: null,
+        updated_at: new Date().toISOString(),
+      } : null)
+      return
+    }
 
     const now = new Date().toISOString()
     const currentRemaining = calculateRemainingTime(timerState).remaining_seconds
 
     try {
-      const { error } = await supabase
+      const { error } = await supabase!
         .from("global_timer")
         .update({
           is_running: false,
           remaining_seconds: currentRemaining,
           started_at: null,
           updated_at: now,
-        })
+        } as any)
         .eq("id", 1)
 
       if (error) throw error
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to pause timer")
     }
-  }, [timerState, supabase, calculateRemainingTime])
+  }, [timerState, supabase, calculateRemainingTime, isLocalMode])
 
   const resetTimer = useCallback(async () => {
-    if (!supabase || !timerState) return
+    if (!timerState) return
+
+    if (isLocalMode) {
+      // Local mode - update state directly
+      setTimerState(prev => prev ? {
+        ...prev,
+        is_running: false,
+        remaining_seconds: prev.total_seconds,
+        started_at: null,
+        updated_at: new Date().toISOString(),
+      } : null)
+      return
+    }
 
     const now = new Date().toISOString()
 
     try {
-      const { error } = await supabase
+      const { error } = await supabase!
         .from("global_timer")
         .update({
           is_running: false,
           remaining_seconds: timerState.total_seconds,
           started_at: null,
           updated_at: now,
-        })
+        } as any)
         .eq("id", 1)
 
       if (error) throw error
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to reset timer")
     }
-  }, [timerState, supabase])
+  }, [timerState, supabase, isLocalMode])
 
   const createTimer = useCallback(async (minutes: number) => {
-    if (!supabase) return
-    
     const seconds = minutes * 60
+
+    if (isLocalMode) {
+      // Local mode - update state directly
+      setTimerState(prev => prev ? {
+        ...prev,
+        total_seconds: seconds,
+        remaining_seconds: seconds,
+        is_running: false,
+        started_at: null,
+        updated_at: new Date().toISOString(),
+      } : null)
+      return
+    }
+    
     const now = new Date().toISOString()
 
     try {
-      const { error } = await supabase
+      const { error } = await supabase!
         .from("global_timer")
         .update({
           total_seconds: seconds,
@@ -226,38 +304,49 @@ export function useRealtimeTimer(): UseRealtimeTimerReturn {
           is_running: false,
           started_at: null,
           updated_at: now,
-        })
+        } as any)
         .eq("id", 1)
 
       if (error) throw error
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create timer")
     }
-  }, [supabase])
+  }, [supabase, isLocalMode])
 
   const applyHint = useCallback(async () => {
-    if (!supabase || !timerState || timerState.remaining_seconds <= 120) return
+    if (!timerState || timerState.remaining_seconds <= 120) return
+
+    if (isLocalMode) {
+      // Local mode - update state directly
+      const newRemaining = Math.max(0, timerState.remaining_seconds - 120)
+      setTimerState(prev => prev ? {
+        ...prev,
+        remaining_seconds: newRemaining,
+        updated_at: new Date().toISOString(),
+      } : null)
+      return
+    }
 
     const now = new Date().toISOString()
     const currentRemaining = calculateRemainingTime(timerState).remaining_seconds
     const newRemaining = Math.max(0, currentRemaining - 120)
 
     try {
-      const { error } = await supabase
+      const { error } = await supabase!
         .from("global_timer")
         .update({
           remaining_seconds: newRemaining,
           total_seconds: timerState.total_seconds,
           started_at: timerState.is_running ? now : null,
           updated_at: now,
-        })
+        } as any)
         .eq("id", 1)
 
       if (error) throw error
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to apply hint")
     }
-  }, [timerState, supabase, calculateRemainingTime])
+  }, [timerState, supabase, calculateRemainingTime, isLocalMode])
 
   return {
     timerState,

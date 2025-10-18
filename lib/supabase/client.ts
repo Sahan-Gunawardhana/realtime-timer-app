@@ -19,7 +19,11 @@ export function createClient() {
     return null
   }
 
-  supabaseClient = createSupabaseClient(supabaseUrl, supabaseAnonKey)
+  supabaseClient = createSupabaseClient(supabaseUrl, supabaseAnonKey, {
+    db: {
+      schema: 'public'
+    }
+  })
 
   return supabaseClient
 }
