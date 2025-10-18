@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
 import { useRealtimeTimer } from "@/hooks/use-realtime-timer"
+import { useFloorNotifications } from "@/hooks/use-floor-notifications"
 
 export default function TimerPage() {
   const [hasWarned, setHasWarned] = useState<Set<number>>(new Set())
@@ -20,6 +21,12 @@ export default function TimerPage() {
     createTimer,
     applyHint,
   } = useRealtimeTimer()
+
+  const {
+    floorStatuses,
+    toggleFloorStatus,
+    resetAllFloors,
+  } = useFloorNotifications()
 
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60)
@@ -62,6 +69,14 @@ export default function TimerPage() {
     }
   }
 
+  const handleFloorToggle = async (floorName: string) => {
+    await toggleFloorStatus(floorName)
+    toast({
+      title: `${floorName}`,
+      description: "Status updated",
+    })
+  }
+
   // Timer completion and warning effects
   useEffect(() => {
     if (timeLeft === 0 && isRunning && initialTime > 0) {
@@ -74,24 +89,14 @@ export default function TimerPage() {
 
   // 5-minute interval warnings
   useEffect(() => {
-    if (!isRunning || timeLeft <= 0) return
-
-    const minutesLeft = Math.floor(timeLeft / 60)
-    
-    // Check for 5-minute milestones (25, 20, 15, 10, 5 minutes)
-    const milestones = [25, 20, 15, 10, 5]
-    
-    for (const milestone of milestones) {
-      const milestoneSeconds = milestone * 60
-      
-      // Trigger warning if we're within 3 seconds of a milestone and haven't warned yet
-      if (Math.abs(timeLeft - milestoneSeconds) <= 3 && !hasWarned.has(milestone)) {
+    if (timeLeft > 0 && timeLeft % 300 === 0 && isRunning) {
+      const minutesLeft = Math.floor(timeLeft / 60)
+      if (!hasWarned.has(timeLeft)) {
         toast({
           title: "Time Warning",
-          description: `${milestone} minute${milestone !== 1 ? "s" : ""} remaining!`,
+          description: `${minutesLeft} minute${minutesLeft !== 1 ? "s" : ""} remaining!`,
         })
-        setHasWarned((prev) => new Set([...prev, milestone]))
-        break // Only show one warning at a time
+        setHasWarned((prev) => new Set([...prev, timeLeft]))
       }
     }
   }, [timeLeft, isRunning, hasWarned, toast])
@@ -113,72 +118,140 @@ export default function TimerPage() {
   }
 
   const progressPercent = initialTime > 0 ? (timeLeft / initialTime) * 100 : 0
+  
+  // iOS timer colors based on time remaining (softer green)
+  const getTimerColor = () => {
+    if (progressPercent > 60) return "text-green-400"
+    if (progressPercent > 30) return "text-orange-400"
+    return "text-red-500"
+  }
+
+  const getProgressColor = () => {
+    if (progressPercent > 60) return "stroke-green-400"
+    if (progressPercent > 30) return "stroke-orange-400"
+    return "stroke-red-500"
+  }
 
   return (
-    <main className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
-      {isRunning && (
-        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 flex items-center gap-2 text-accent text-sm font-semibold z-50">
-          <div className="w-2 h-2 bg-accent rounded-full animate-pulse" />
-          Running
+    <main className="min-h-screen bg-black text-white p-3 flex flex-col">
+      <div className="flex-1 max-w-xs mx-auto w-full">
+        {/* Progress Indicator at Top */}
+        <div className="w-full h-1 bg-gray-800 rounded-full mb-4">
+          <div 
+            className={`h-full rounded-full transition-all duration-300 ${
+              progressPercent > 60 ? "bg-green-400" : 
+              progressPercent > 30 ? "bg-orange-400" : "bg-red-500"
+            }`}
+            style={{ width: `${progressPercent}%` }}
+          />
         </div>
-      )}
 
-      <div className="w-full max-w-md">
-        <div className="bg-card/60 shadow-lg p-6 sm:p-8">
-          <div className="mb-8">
-            <div className="bg-gradient-to-br from-primary/10 to-accent/10 rounded-lg p-6 sm:p-8">
-              <div className="text-center">
-                <div className="text-6xl sm:text-7xl font-bold text-primary mb-4 font-mono">{formatTime(timeLeft)}</div>
-                {initialTime > 0 && (
-                  <div className="h-2 bg-muted/30 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-primary to-accent transition-all duration-300"
-                      style={{ width: `${progressPercent}%` }}
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
+        {/* iOS-style Timer Display */}
+        <div className="text-center mb-6">
+          <div className={`text-5xl sm:text-6xl font-thin ${getTimerColor()} mb-4 font-mono`}>
+            {formatTime(timeLeft)}
           </div>
+          
+          {/* Compact Circular Progress */}
+          <div className="relative w-32 h-32 mx-auto mb-6">
+            <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
+              <circle
+                cx="50" cy="50" r="45"
+                stroke="rgb(55, 65, 81)" strokeWidth="3" fill="none"
+              />
+              <circle
+                cx="50" cy="50" r="45"
+                stroke="currentColor" strokeWidth="3" fill="none"
+                strokeDasharray={`${2 * Math.PI * 45}`}
+                strokeDashoffset={`${2 * Math.PI * 45 * (1 - progressPercent / 100)}`}
+                className={getProgressColor()}
+                style={{ transition: "stroke-dashoffset 0.3s ease" }}
+              />
+            </svg>
+            {isRunning && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+              </div>
+            )}
+          </div>
+        </div>
 
-          <div className="grid grid-cols-2 gap-3 mb-6">
-            <Button
+        {/* Timer Controls */}
+        <div className="space-y-2 mb-6">
+          <div className="grid grid-cols-2 gap-2">
+            <button
               onClick={() => handleCreateTimer(25)}
               disabled={isRunning}
-              variant={initialTime === 1500 ? "default" : "outline"}
-              className="font-semibold text-base py-6"
+              className="h-11 bg-gray-800 hover:bg-gray-700 rounded-lg text-white font-medium text-sm disabled:opacity-50"
             >
               25 Min
-            </Button>
-            <Button
+            </button>
+            <button
               onClick={() => handleCreateTimer(30)}
               disabled={isRunning}
-              variant={initialTime === 1800 ? "default" : "outline"}
-              className="font-semibold text-base py-6"
+              className="h-11 bg-gray-800 hover:bg-gray-700 rounded-lg text-white font-medium text-sm disabled:opacity-50"
             >
               30 Min
-            </Button>
+            </button>
           </div>
-
-          <div className="grid grid-cols-3 gap-3">
-            <Button
+          
+          <div className="grid grid-cols-2 gap-2">
+            <button
               onClick={handleStart}
               disabled={timeLeft === 0}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-base py-6"
+              className="h-11 bg-green-500 hover:bg-green-600 rounded-lg text-white font-medium text-sm disabled:opacity-50"
             >
               {isRunning ? "Pause" : "Start"}
-            </Button>
-            <Button onClick={handleReset} variant="outline" className="font-semibold text-base py-6 bg-transparent">
-              Reset
-            </Button>
-            <Button
+            </button>
+            <button
               onClick={handleHint}
               disabled={timeLeft <= 120}
-              variant="outline"
-              className="font-semibold text-base py-6 bg-transparent"
+              className="h-11 bg-gray-800 hover:bg-gray-700 rounded-lg text-white font-medium text-sm disabled:opacity-50"
             >
-              Hint (-2m)
-            </Button>
+              -2 Min
+            </button>
+          </div>
+        </div>
+
+        {/* Floor Status */}
+        <div className="mb-4">
+          <h3 className="text-base font-medium mb-2">Floors</h3>
+          <div className="grid grid-cols-3 gap-2">
+            {floorStatuses.filter(f => !["right", "wrong"].includes(f.id)).map((floor) => (
+              <button
+                key={floor.id}
+                onClick={() => handleFloorToggle(floor.floor_name)}
+                className={`h-9 rounded-lg font-medium text-xs transition-all ${
+                  floor.is_completed 
+                    ? "bg-green-500 text-white" 
+                    : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+                }`}
+              >
+                {floor.floor_name.replace(" Floor", "")}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Ending Status */}
+        <div>
+          <h3 className="text-base font-medium mb-2">Ending</h3>
+          <div className="grid grid-cols-2 gap-2">
+            {floorStatuses.filter(f => ["right", "wrong"].includes(f.id)).map((ending) => (
+              <button
+                key={ending.id}
+                onClick={() => handleFloorToggle(ending.floor_name)}
+                className={`h-9 rounded-lg font-medium text-xs transition-all ${
+                  ending.is_completed 
+                    ? ending.id === "right" 
+                      ? "bg-green-500 text-white"
+                      : "bg-red-500 text-white"
+                    : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+                }`}
+              >
+                {ending.floor_name}
+              </button>
+            ))}
           </div>
         </div>
       </div>

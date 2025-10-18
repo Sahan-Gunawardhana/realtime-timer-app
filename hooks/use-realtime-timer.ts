@@ -275,6 +275,7 @@ export function useRealtimeTimer(): UseRealtimeTimerReturn {
         .update({
           is_running: false,
           remaining_seconds: currentRemaining,
+          total_seconds: currentRemaining, // Set total to current remaining so it starts from here
           started_at: null,
           updated_at: now,
         } as any)
@@ -359,47 +360,35 @@ export function useRealtimeTimer(): UseRealtimeTimerReturn {
   const applyHint = useCallback(async () => {
     if (!timerState || timerState.remaining_seconds <= 120) return
 
+    const currentRemaining = isLocalMode ? timerState.remaining_seconds : calculateRemainingTime(timerState).remaining_seconds
+    const newRemaining = Math.max(0, currentRemaining - 120)
+
     if (isLocalMode) {
       // Local mode - update state directly
-      const newRemaining = Math.max(0, timerState.remaining_seconds - 120)
       setTimerState(prev => prev ? {
         ...prev,
         remaining_seconds: newRemaining,
+        total_seconds: newRemaining, // Update total too
         updated_at: new Date().toISOString(),
       } : null)
       return
     }
 
     const now = new Date().toISOString()
-    const currentRemaining = calculateRemainingTime(timerState).remaining_seconds
-    const newRemaining = Math.max(0, currentRemaining - 120)
 
     try {
-      if (timerState.is_running) {
-        // If timer is running, restart it with the reduced time
-        const { error } = await supabase!
-          .from("global_timer")
-          .update({
-            remaining_seconds: newRemaining,
-            total_seconds: newRemaining, // Set new total to the reduced time
-            started_at: now, // Restart from now with reduced time
-            updated_at: now,
-          } as any)
-          .eq("id", 1)
+      // Always update both remaining and total, restart timer if it was running
+      const { error } = await supabase!
+        .from("global_timer")
+        .update({
+          remaining_seconds: newRemaining,
+          total_seconds: newRemaining,
+          started_at: timerState.is_running ? now : null,
+          updated_at: now,
+        } as any)
+        .eq("id", 1)
 
-        if (error) throw error
-      } else {
-        // If timer is paused, just reduce the remaining time
-        const { error } = await supabase!
-          .from("global_timer")
-          .update({
-            remaining_seconds: newRemaining,
-            updated_at: now,
-          } as any)
-          .eq("id", 1)
-
-        if (error) throw error
-      }
+      if (error) throw error
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to apply hint")
     }
