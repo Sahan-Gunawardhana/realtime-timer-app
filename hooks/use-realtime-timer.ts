@@ -135,12 +135,15 @@ export function useRealtimeTimer(): UseRealtimeTimerReturn {
           filter: "id=eq.1",
         },
         (payload: any) => {
+          console.log("Real-time update received:", payload)
           if (payload.new) {
-            setTimerState(calculateRemainingTime(payload.new as TimerState))
+            const newState = calculateRemainingTime(payload.new as TimerState)
+            setTimerState(newState)
           }
         }
       )
       .subscribe((status: string) => {
+        console.log("Subscription status:", status)
         if (status === "SUBSCRIBED") {
           setError(null)
         } else if (status === "CHANNEL_ERROR") {
@@ -155,7 +158,31 @@ export function useRealtimeTimer(): UseRealtimeTimerReturn {
     }
   }, [supabase, fetchTimerState, calculateRemainingTime, isLocalMode])
 
-  // Timer countdown effect (works for both local and real-time modes)
+  // Periodic sync to ensure all devices stay in sync
+  useEffect(() => {
+    if (isLocalMode || !timerState?.is_running) return
+
+    const syncInterval = setInterval(async () => {
+      try {
+        const { data, error } = await supabase!
+          .from("global_timer")
+          .select("*")
+          .eq("id", 1)
+          .single()
+
+        if (!error && data) {
+          const updatedState = calculateRemainingTime(data)
+          setTimerState(updatedState)
+        }
+      } catch (err) {
+        console.error("Sync error:", err)
+      }
+    }, 5000) // Sync every 5 seconds as backup
+
+    return () => clearInterval(syncInterval)
+  }, [isLocalMode, timerState?.is_running, supabase, calculateRemainingTime])
+
+  // Client-side display update - only for visual countdown
   useEffect(() => {
     if (!timerState?.is_running) {
       if (intervalRef.current) {
@@ -178,7 +205,8 @@ export function useRealtimeTimer(): UseRealtimeTimerReturn {
           
           return { ...prev, remaining_seconds: newRemaining }
         } else {
-          // Real-time mode - calculate based on server timestamp
+          // Real-time mode - just calculate display time based on server timestamp
+          // Don't update database here - let server handle the countdown
           return calculateRemainingTime(prev)
         }
       })
